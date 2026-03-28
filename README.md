@@ -36,7 +36,7 @@ Just talk to pi naturally:
 ```
 find skills for web scraping
 search skills for React components
-necesito una skill para deploy en AWS
+I need a skill for AWS deployment
 ```
 
 The extension intercepts these requests and shows matching skills from all providers.
