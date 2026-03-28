@@ -4,7 +4,7 @@
 
 import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
 import type { Skill, SkillProvider, SearchMode } from "./providers/types";
-import { searchAllProviders, normalizeQuery, detectLanguage, buildRecommendation } from "./search";
+import { searchAllProviders, normalizeQuery, detectLanguage } from "./search";
 import { showInteractiveSkillPicker, SearchResultsMessageDetails } from "./ui";
 
 interface CommandContext {
@@ -39,7 +39,7 @@ export async function runSearchCommand(
   ctx.ui.setStatus("skills", preferredMode === "ai" ? "AI searching skills..." : "Searching skills...");
 
   try {
-    const result = await searchAllProviders(query, preferredMode, cmdCtx.providers, "en");
+    const result = await searchAllProviders(query, preferredMode, cmdCtx.providers);
     ctx.ui.setStatus("skills", undefined);
 
     if (result.skills.length === 0) {
@@ -47,7 +47,7 @@ export async function runSearchCommand(
       return;
     }
 
-    const picked = await showInteractiveSkillPicker(ctx, query, result.mode, "en", result.skills, result.sources);
+    const picked = await showInteractiveSkillPicker(ctx, query, result.mode, result.skills, result.sources);
     if (!picked) return;
 
     // Find the right provider for installation
@@ -57,6 +57,7 @@ export async function runSearchCommand(
       return;
     }
 
+    ctx.ui.notify(`⏳ Installing ${picked.name}...`, "info", 0);
     ctx.ui.setStatus("skills", `Installing ${picked.name}...`);
     const installResult = await provider.install(picked);
     ctx.ui.setStatus("skills", undefined);
@@ -64,7 +65,7 @@ export async function runSearchCommand(
     if (installResult.success) {
       ctx.ui.notify(`✓ Installed ${picked.name}`, "success");
     } else {
-      ctx.ui.notify(`Failed to install: ${installResult.error}`, "error");
+      ctx.ui.notify(`✗ Failed to install: ${installResult.error}`, "error");
     }
   } catch (err) {
     ctx.ui.setStatus("skills", undefined);
@@ -79,8 +80,7 @@ export async function runSearchCommand(
 export async function handleNaturalLanguageSearch(
   intent: { query: string; mode: SearchMode },
   ctx: ExtensionContext,
-  cmdCtx: CommandContext,
-  language: "es" | "en"
+  cmdCtx: CommandContext
 ): Promise<{ action: "handled" | "continue" }> {
   const availableProviders = cmdCtx.providers.filter(p => p.isAvailable());
   if (availableProviders.length === 0) {
@@ -88,50 +88,41 @@ export async function handleNaturalLanguageSearch(
     return { action: "handled" };
   }
 
-  ctx.ui.setStatus("skills", language === "es" ? "Buscando skills..." : "Searching skills...");
+  ctx.ui.setStatus("skills", "Searching skills...");
 
   try {
-    const result = await searchAllProviders(intent.query, intent.mode, cmdCtx.providers, language);
+    const result = await searchAllProviders(intent.query, intent.mode, cmdCtx.providers);
     ctx.ui.setStatus("skills", undefined);
 
     if (result.skills.length === 0) {
       cmdCtx.sendMessage({
         customType: "skills-results",
-        content: language === "es" ? "No se encontraron skills." : "No skills found.",
+        content: "No skills found.",
         display: true,
         details: {
           query: intent.query,
           mode: result.mode,
-          language,
           skills: [],
           sources: result.sources,
-          recommendation: language === "es"
-            ? `Prueba con otra búsqueda más específica para ${JSON.stringify(intent.query)}.`
-            : `Try a more specific search for ${JSON.stringify(intent.query)}.`,
         } as SearchResultsMessageDetails,
       });
       return { action: "handled" };
     }
 
     if (ctx.hasUI) {
-      const picked = await showInteractiveSkillPicker(ctx, intent.query, result.mode, language, result.skills, result.sources);
+      const picked = await showInteractiveSkillPicker(ctx, intent.query, result.mode, result.skills, result.sources);
       if (picked) {
         const provider = cmdCtx.providers.find(p => p.id === picked.provider);
         if (provider) {
-          ctx.ui.setStatus("skills", language === "es" ? `Instalando ${picked.name}...` : `Installing ${picked.name}...`);
+          ctx.ui.notify(`⏳ Installing ${picked.name}...`, "info", 0);
+          ctx.ui.setStatus("skills", `Installing ${picked.name}...`);
           const installResult = await provider.install(picked);
           ctx.ui.setStatus("skills", undefined);
 
           if (installResult.success) {
-            ctx.ui.notify(
-              language === "es" ? `✓ ${picked.name} instalada` : `✓ Installed ${picked.name}`,
-              "success"
-            );
+            ctx.ui.notify(`✓ Installed ${picked.name}`, "success");
           } else {
-            ctx.ui.notify(
-              language === "es" ? `No se pudo instalar: ${installResult.error}` : `Failed to install: ${installResult.error}`,
-              "error"
-            );
+            ctx.ui.notify(`✗ Failed to install: ${installResult.error}`, "error");
           }
         }
       }
@@ -140,15 +131,13 @@ export async function handleNaturalLanguageSearch(
 
     cmdCtx.sendMessage({
       customType: "skills-results",
-      content: language === "es" ? "Resultados de búsqueda" : "Search results",
+      content: "Search results",
       display: true,
       details: {
         query: intent.query,
         mode: result.mode,
-        language,
         skills: result.skills,
         sources: result.sources,
-        recommendation: buildRecommendation(intent.query, result.skills, language),
       } as SearchResultsMessageDetails,
     });
 
@@ -163,11 +152,9 @@ export async function handleNaturalLanguageSearch(
       details: {
         query: intent.query,
         mode: intent.mode,
-        language,
         skills: [],
         sources: { skillsmp: 0, skillssh: 0 },
-        recommendation: "",
-        error: language === "es" ? `Error buscando skills: ${message}` : `Error searching skills: ${message}`,
+        error: `Error searching skills: ${message}`,
       } as SearchResultsMessageDetails,
     });
     return { action: "handled" };
@@ -204,7 +191,7 @@ export function registerCommands(
         return;
       }
 
-      // Try to find skill in any provider
+      ctx.ui.notify(`⏳ Installing ${skillId}...`, "info", 0);
       ctx.ui.setStatus("skills", "Installing...");
       
       // Try skills.sh first (no auth required), then SkillsMP
@@ -222,7 +209,7 @@ export function registerCommands(
       if (installResult.success) {
         ctx.ui.notify("✓ Skill installed", "success");
       } else {
-        ctx.ui.notify(`Failed to install: ${installResult.error}`, "error");
+        ctx.ui.notify(`✗ Failed to install: ${installResult.error}`, "error");
       }
     },
   });
@@ -234,7 +221,7 @@ export function registerCommands(
         "/skills search <query> - Search skills by keywords (all providers)",
         "/skills ai <query> - AI semantic search (all providers)",
         "/skills install <id> - Install a skill by ID",
-        'Natural language: "buscar skills para React"',
+        'Natural language: "find skills for React"',
         'Natural language: "search skills for Cloudflare deploy"',
         "",
         "Providers:",
@@ -273,6 +260,7 @@ export function registerCommands(
         return;
       }
 
+      ctx.ui.notify(`⏳ Installing ${skillId}...`, "info", 0);
       ctx.ui.setStatus("skills", "Installing...");
       const provider = cmdCtx.providers.find(p => p.id === "skillsmp");
       const result = provider ? await provider.install(skillId) : { success: false, error: "Provider not available" };
@@ -281,7 +269,7 @@ export function registerCommands(
       if (result.success) {
         ctx.ui.notify("✓ Skill installed", "success");
       } else {
-        ctx.ui.notify(`Failed to install: ${result.error}`, "error");
+        ctx.ui.notify(`✗ Failed to install: ${result.error}`, "error");
       }
     },
   });

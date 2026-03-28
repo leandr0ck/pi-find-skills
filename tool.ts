@@ -53,7 +53,6 @@ export function registerTool(
       "Include `/skills install <skill-id>` for each result.",
       "Results show the source (SkillsMP or skills.sh) for each skill.",
       "When the search is descriptive or task-oriented, prefer AI mode.",
-      "Whenever possible, end with a brief recommendation tailored to the user's context.",
     ],
     parameters: Type.Object({
       query: Type.String({ description: "Search query (e.g., 'react', 'web scraping', 'testing')" }),
@@ -135,7 +134,7 @@ export function registerTool(
       }
 
       try {
-        const result = await searchAllProviders(params.query, params.mode, providers, "en");
+        const result = await searchAllProviders(params.query, params.mode, providers);
 
         if (result.skills.length === 0) {
           return {

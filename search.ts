@@ -1,7 +1,7 @@
 /**
  * Search aggregation and ranking logic
- * 
- * Combines results from multiple providers, deduplicates, and re-ranks.
+ *
+ * Combines results from multiple providers, deduplicates, and sorts by popularity.
  */
 
 import type { Skill, SkillProvider, SearchMode, SearchResult } from "./providers/types";
@@ -38,7 +38,7 @@ export function stripAccents(value: string): string {
 /**
  * Build search candidates from a query (variations to try)
  */
-export function buildSearchCandidates(query: string, language: "es" | "en"): string[] {
+export function buildSearchCandidates(query: string): string[] {
   const normalized = normalizeQuery(query).toLowerCase();
   const ascii = stripAccents(normalized);
   const candidates: string[] = [];
@@ -77,15 +77,9 @@ export function buildSearchCandidates(query: string, language: "es" | "en"): str
     if (ascii.includes(stripAccents(phrase))) add(phrase);
   }
 
-  const stopwords = new Set(
-    language === "es"
-      ? [
-          "desarrollar", "desarrollo", "aplicaciones", "aplicacion", "crear", "hacer", "con", "para", "de", "del", "la", "el", "los", "las", "una", "un", "y", "en", "usar", "que",
-        ]
-      : [
-          "build", "building", "develop", "developing", "applications", "application", "app", "apps", "with", "for", "using", "the", "a", "an", "and", "to", "in",
-        ],
-  );
+  const stopwords = new Set([
+    "build", "building", "develop", "developing", "applications", "application", "app", "apps", "with", "for", "using", "the", "a", "an", "and", "to", "in",
+  ]);
 
   const tokens = ascii
     .split(/[^a-z0-9.+#-]+/)
@@ -100,46 +94,26 @@ export function buildSearchCandidates(query: string, language: "es" | "en"): str
 }
 
 /**
- * Score skill relevance to query
+ * Get a comparable popularity score across providers.
+ *
+ * For SkillsMP this is the GitHub stars count.
+ * For skills.sh we currently map installs into `stars`, so the same field can be
+ * used as a single popularity metric for ordering.
  */
-export function scoreSkillRelevance(skill: Skill, query: string): number {
-  const normalizedQuery = query.toLowerCase().trim();
-  const skillName = skill.name.toLowerCase();
-  const skillDesc = skill.description.toLowerCase();
-  
-  // Exact name match - highest priority
-  if (skillName === normalizedQuery) return 1000000 + skill.stars;
-  
-  // Name starts with query - high priority
-  if (skillName.startsWith(normalizedQuery)) return 500000 + skill.stars;
-  
-  // Name contains query - good priority
-  if (skillName.includes(normalizedQuery)) return 100000 + skill.stars;
-  
-  // Description contains query as a word (not just substring)
-  const queryWords = normalizedQuery.split(/\s+/);
-  const descWords = new Set(skillDesc.split(/\s+/));
-  const matchingWords = queryWords.filter(w => descWords.has(w) || 
-    Array.from(descWords).some(dw => dw.startsWith(w))
-  ).length;
-  
-  // Partial match in description - lower priority, still factor in stars
-  if (matchingWords > 0) {
-    return (matchingWords * 1000) + skill.stars;
-  }
-  
-  // Fallback: just use stars
+export function getSkillPopularity(skill: Skill): number {
   return skill.stars;
 }
 
 /**
- * Rank skills by relevance
+ * Sort skills by popularity.
  */
-export function rankSkills(skills: Skill[], query: string): Skill[] {
-  return [...skills]
-    .map(skill => ({ skill, score: scoreSkillRelevance(skill, query) }))
-    .sort((a, b) => b.score - a.score)
-    .map(item => item.skill);
+export function rankSkills(skills: Skill[], _query: string): Skill[] {
+  return [...skills].sort((a, b) => {
+    const popularityDiff = getSkillPopularity(b) - getSkillPopularity(a);
+    if (popularityDiff !== 0) return popularityDiff;
+
+    return a.name.localeCompare(b.name);
+  });
 }
 
 /**
@@ -176,9 +150,8 @@ export async function searchAllProviders(
   query: string,
   mode: SearchMode,
   providers: SkillProvider[],
-  language: "es" | "en" = "en",
 ): Promise<SearchResult> {
-  const candidates = buildSearchCandidates(query, language);
+  const candidates = buildSearchCandidates(query);
   const availableProviders = providers.filter(p => p.isAvailable());
   
   // Run all providers in parallel for each candidate
@@ -223,44 +196,6 @@ export async function searchAllProviders(
 }
 
 /**
- * Build recommendation text based on top result
- */
-export function buildRecommendation(query: string, skills: Skill[], language: "es" | "en"): string {
-  const top = skills[0];
-  if (!top) {
-    return language === "es"
-      ? `No encontré una recomendación clara para ${JSON.stringify(query)}.`
-      : `I couldn't find a clear recommendation for ${JSON.stringify(query)}.`;
-  }
-
-  const sourceLabel = top.provider === "skillsmp" ? "SkillsMP" : "skills.sh";
-  const why = top.name.toLowerCase().includes(query.toLowerCase())
-    ? language === "es"
-      ? "porque coincide directamente con la búsqueda"
-      : "because it directly matches your search"
-    : top.stars > 0
-      ? language === "es"
-        ? `porque además tiene ${top.stars.toLocaleString()} stars`
-        : `because it also has ${top.stars.toLocaleString()} stars`
-      : language === "es"
-        ? "porque parece el resultado más cercano"
-        : "because it looks like the closest match";
-
-  return language === "es"
-    ? `Recomendación: empieza con ${top.name} (${sourceLabel}) — ${why}. Instálala con /skills install ${top.id}`
-    : `Recommendation: start with ${top.name} (${sourceLabel}) — ${why}. Install it with /skills install ${top.id}`;
-}
-
-/**
- * Detect language from input text
- */
-export function detectLanguage(text: string): "es" | "en" {
-  return /\b(buscar|busca|habilidades|para|hacer|desplegar|encuentra|muestrame|muéstrame|desarrollar|aplicaciones)\b/i.test(text)
-    ? "es"
-    : "en";
-}
-
-/**
  * Detect search intent from natural language
  */
 export function detectSearchIntent(text: string): { query: string; mode: SearchMode } | null {
@@ -268,9 +203,13 @@ export function detectSearchIntent(text: string): { query: string; mode: SearchM
   if (!input) return null;
 
   const patterns = [
-    /^(?:buscar|busca|búscame|buscame|encontrar|encuentra|mostrar|muéstrame|muestrame)\s+(?:skills?|habilidades?)\s+(?:para|de|sobre)\s+(.+)$/i,
+    // English
     /^(?:find|search|look\s+for|discover)\s+(?:skills?)\s+(?:for|about)\s+(.+)$/i,
-    /^(?:skills?|habilidades?)\s+(?:para|for|de|about)\s+(.+)$/i,
+    /^(?:skills?)\s+(?:for|about)\s+(.+)$/i,
+
+    // Spanish
+    /^(?:buscar|busca|encontrar|encuentra|descubrir|descubre)\s+(?:skills?|habilidades?)\s+(?:para|sobre|de)\s+(.+)$/i,
+    /^(?:skills?|habilidades?)\s+(?:para|sobre|de)\s+(.+)$/i,
   ];
 
   for (const pattern of patterns) {

@@ -17,7 +17,7 @@
 import type { ExtensionAPI, ExtensionContext, Theme } from "@mariozechner/pi-coding-agent";
 import { Text } from "@mariozechner/pi-tui";
 import { skillsmpProvider, skillsshProvider } from "./providers";
-import { detectSearchIntent, detectLanguage } from "./search";
+import { detectSearchIntent } from "./search";
 import { handleNaturalLanguageSearch, registerCommands } from "./commands";
 import { registerTool } from "./tool";
 import { SearchResultsMessageDetails, renderSkillsTable } from "./ui";
@@ -37,9 +37,7 @@ export default function skillsExtension(pi: ExtensionAPI) {
       return new Text(theme.fg("error", details.error), 0, 0);
     }
 
-    const title = details.language === "es"
-      ? theme.fg("success", `Resultados para `) + theme.fg("accent", JSON.stringify(details.query))
-      : theme.fg("success", `Results for `) + theme.fg("accent", JSON.stringify(details.query));
+    const title = theme.fg("success", `Results for `) + theme.fg("accent", JSON.stringify(details.query));
 
     let text = title;
 
@@ -56,11 +54,7 @@ export default function skillsExtension(pi: ExtensionAPI) {
     if (details.skills.length > 0) {
       text += "\n\n" + renderSkillsTable(details.skills, theme, expanded);
     } else {
-      text += "\n\n" + theme.fg("dim", details.language === "es" ? "No se encontraron resultados." : "No results found.");
-    }
-
-    if (details.recommendation) {
-      text += "\n\n" + theme.fg("accent", details.recommendation);
+      text += "\n\n" + theme.fg("dim", "No results found.");
     }
 
     if (expanded) {
@@ -90,8 +84,7 @@ export default function skillsExtension(pi: ExtensionAPI) {
       return { action: "continue" } as const;
     }
 
-    const language = detectLanguage(event.text);
-    return handleNaturalLanguageSearch(intent, ctx, cmdCtx, language);
+    return handleNaturalLanguageSearch(intent, ctx, cmdCtx);
   });
 
   // Register LLM tools
