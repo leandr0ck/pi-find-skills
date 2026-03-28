@@ -1,64 +1,94 @@
 # pi-find-skills
 
-A [pi coding agent](https://github.com/badlogic/pi-mono) extension for searching and installing skills from multiple providers: [SkillsMP](https://skillsmp.com) and [skills.sh](https://skills.sh).
+A [pi coding agent](https://github.com/badlogic/pi-mono) extension for discovering and installing AI agent skills from multiple marketplaces.
 
 ![pi-find-skills screenshot](./Screenshot.png)
+
+## What is this?
+
+**pi-find-skills** lets you search, discover, and install skills for your AI coding agent directly from within pi. Instead of manually browsing skill marketplaces, you can find and install skills using natural language or slash commands.
+
+**Skills** are reusable prompt templates, workflows, and capabilities that extend what your AI agent can do. For example:
+- "How do I deploy to Cloudflare?" → finds and installs Cloudflare deployment skills
+- "I need help with testing" → discovers TDD and testing skills
+- "Set up a Neon database" → finds Neon/Postgres skills
+
+This extension searches both [SkillsMP](https://skillsmp.com) and [skills.sh](https://skills.sh) simultaneously, so you get the best results from both platforms.
 
 
 ## Features
 
-- ✍️ **Natural Language Input** - Write  `search skills for Cloudflare deploy` or `search skills for React`
-- 🌐 **Multi-Provider** - Searches SkillsMP and skills.sh simultaneously
-- 🔍 **Popularity Sorting** - Orders results simply by stars or installs
-- 📊 **Rich Results UI** - Navigable table with source badges (SMP/SSH)
-- 📦 **Installation Flow** - Install skills directly from pi
-- 🧰 **LLM Tool** - Exposes the `skills_search` tool to the agent
-- 💬 **Slash Commands** - Adds `/skills`, `/skills search`, `/skills ai`, and `/skills install`
+- ✍️ **Natural Language** - Just ask: "find skills for React" or "search skills for deploying to Vercel"
+- 🌐 **Multi-Provider Search** - Queries SkillsMP and skills.sh in parallel
+- 🔍 **Smart Ranking** - Results sorted by popularity (stars/installs)
+- 📊 **Interactive UI** - Navigate results in a beautiful table with keyboard
+- 📦 **One-Click Install** - Install any skill directly from the picker
+- 🧰 **Agent Tool** - Exposes `skills_search` so the agent can find skills autonomously
+- 💬 **Slash Commands** - `/skills search`, `/skills ai`, `/skills install`
 
 
-## What this extension does
+## Quick Start
 
-Once loaded, it adds three integrations to pi:
+### Natural Language (Recommended)
 
-1. **Natural-language search interception** via the `input` event
-2. **Slash commands** for searching and installing skills from the pi UI
-3. **A tool named `skills_search`** so the agent can discover skills when the user asks for them
+Just talk to pi naturally:
 
-The **skills** are what this extension searches for and installs.
-This repository is the **extension**.
+```
+find skills for web scraping
+search skills for React components
+necesito una skill para deploy en AWS
+```
+
+The extension intercepts these requests and shows matching skills from all providers.
+
+### Slash Commands
+
+```bash
+/skills search <query>    # Keyword search across all providers
+/skills ai <query>        # AI semantic search (requires SkillsMP)
+/skills install <id>      # Install a skill by its ID
+/skills                   # Show available commands
+```
+
 
 ## Providers
 
-This extension searches skills from two providers in parallel:
-
 | Provider | Auth | Description |
 |----------|------|-------------|
-| **SkillsMP** | Required (`SKILLSMP_API_KEY`) | Premium marketplace with AI semantic search |
-| **skills.sh** | None required | Open marketplace via `npx skills find` |
+| **[SkillsMP](https://skillsmp.com)** | API Key | Premium marketplace with AI-powered semantic search |
+| **[skills.sh](https://skills.sh)** | None | Open marketplace, works out of the box |
 
-Results from both providers are merged, deduplicated, and sorted by popularity (stars or installs).
+Results are merged, deduplicated, and sorted by popularity.
 
 
 ## Configuration
 
-### SkillsMP API Key (Optional)
+### SkillsMP (Optional)
 
-SkillsMP requires an API key. skills.sh works without configuration.
+SkillsMP requires an API key. skills.sh works without any configuration.
 
 1. Go to [SkillsMP](https://skillsmp.com/auth/login)
-2. Sign in
-3. Generate an API key
-4. Add to your shell profile:
+2. Sign in and generate an API key
+3. Add to your shell profile:
 
 ```bash
 export SKILLSMP_API_KEY="sk_live_your_key_here"
 ```
 
-Then reload your shell:
-
 ```bash
-source ~/.zshrc
+source ~/.zshrc  # or ~/.bashrc
 ```
+
+
+## How It Works
+
+Once loaded, the extension adds three capabilities to pi:
+
+1. **Input Interception** - Detects when you're looking for skills in natural language
+2. **Slash Commands** - Provides `/skills` commands for direct control
+3. **Agent Tool** - Gives the agent access to `skills_search` so it can find skills when you ask questions like "is there a skill for X?"
+
+
 ## License
 
 MIT
