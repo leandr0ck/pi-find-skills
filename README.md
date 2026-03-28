@@ -1,6 +1,6 @@
 # pi-skillsmp
 
-[SkillsMP](https://skillsmp.com) extension for [pi coding agent](https://github.com/badlogic/pi-coding-agent).
+[SkillsMP](https://skillsmp.com) extension for [pi coding agent](https://github.com/badlogic/pi-mono).
 
 Search, discover, and install AI agent skills from the SkillsMP marketplace directly within pi.
 
