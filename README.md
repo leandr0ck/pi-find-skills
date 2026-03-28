@@ -17,7 +17,7 @@ Search, discover, and install AI agent skills from the SkillsMP marketplace dire
 
 ```bash
 cd ~/.pi/agent/extensions
-git clone https://github.com/leandr0ck/pi-skillsmp.git skillsmp
+git clone https://github.com/leandr0ck/pi-skillsmp-extension.git skillsmp
 ```
 
 ### Option 2: Manual install
@@ -78,9 +78,9 @@ skillsmp_search(query: "react", mode: "keyword" | "ai")
 Just ask naturally:
 
 ```
-"busca una skill para react"
+"find a skill for react"
 "find a skill for web scraping"
-"necesito una skill para testing"
+"find a skill for testing"
 ```
 
 ## Output Format
