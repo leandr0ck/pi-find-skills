@@ -136,10 +136,14 @@ function makeSingleCellRow(text: string, width: number, color: (text: string) =>
   return `│ ${color(padPlain(text, width))} │`;
 }
 
+function styleHeaderText(text: string, theme: Theme): string {
+  return theme.fg("text", theme.bold(text));
+}
+
 function buildListDescription(skill: Skill): string {
   return [
     padPlain(getProviderBadge(skill.provider), 3),
-    padPlain(formatStars(skill.stars), 8),
+    padPlain(formatStars(skill.stars), 16, "right"),
     truncatePlain(skill.author, 16),
   ].join("  ");
 }
@@ -157,7 +161,7 @@ export function renderSkillsTable(skills: Skill[], theme: Theme, expanded: boole
     3,
     Math.min(26, Math.max(18, ...rows.map((skill) => visibleWidth(normalizeInline(skill.name))))),
     3,
-    12,
+    24,
     Math.min(16, Math.max(10, ...rows.map((skill) => visibleWidth(normalizeInline(skill.author))))),
   ];
 
@@ -169,14 +173,15 @@ export function renderSkillsTable(skills: Skill[], theme: Theme, expanded: boole
 
   lines.push(top);
   lines.push(
-    theme.bold(
+    styleHeaderText(
       makePlainRow([
         padPlain("#", widths[0], "right"),
         padPlain("Skill", widths[1]),
         padPlain("Src", widths[2]),
-        padPlain("Popularity", widths[3]),
+        padPlain("Popularity", widths[3], "right"),
         padPlain("Author", widths[4]),
       ]),
+      theme,
     ),
   );
   lines.push(mid);
@@ -186,7 +191,7 @@ export function renderSkillsTable(skills: Skill[], theme: Theme, expanded: boole
       padPlain(String(index + 1), widths[0], "right"),
       padPlain(skill.name, widths[1]),
       padPlain(getProviderBadge(skill.provider), widths[2]),
-      padPlain(formatStars(skill.stars), widths[3]),
+      padPlain(formatStars(skill.stars), widths[3], "right"),
       padPlain(skill.author, widths[4]),
     ];
 
@@ -277,10 +282,10 @@ export async function showInteractiveSkillPicker(
         const legendLeft = padPlain("Skill", primaryColumnWidth);
         const legendRight = [
           padPlain("Src", 3),
-          padPlain("Popularity", 8),
+          padPlain("Popularity", 16, "right"),
           padPlain("Author", 16),
         ].join("  ");
-        legendText.setText(theme.fg("borderMuted", `${legendLeft}  ${legendRight}`));
+        legendText.setText(styleHeaderText(`${legendLeft}  ${legendRight}`, theme));
 
         detailTitleText.setText(
           theme.fg("accent", theme.bold("Details")),
