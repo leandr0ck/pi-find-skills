@@ -143,7 +143,7 @@ async function fetchSkillDescription(skill: Skill): Promise<string | null> {
   return request;
 }
 
-async function enrichSkillDescriptions(skills: Skill[]): Promise<Skill[]> {
+export async function enrichSkillDescriptions(skills: Skill[]): Promise<Skill[]> {
   const pending = skills.filter((skill) => hasPlaceholderDescription(skill.description));
   if (pending.length === 0) return skills;
 
@@ -297,7 +297,7 @@ export const skillsshProvider: SkillProvider = {
         maxBuffer: 1024 * 1024,
       });
 
-      const skills = await enrichSkillDescriptions(parseSkillsOutput(stdout));
+      const skills = parseSkillsOutput(stdout);
       if (skills.length > 0) return skills;
     } catch {
       // Fall through to the JSON attempt below.
@@ -308,7 +308,7 @@ export const skillsshProvider: SkillProvider = {
         timeout: 15000,
         maxBuffer: 1024 * 1024,
       });
-      return enrichSkillDescriptions(parseSkillsOutput(stdout));
+      return parseSkillsOutput(stdout);
     } catch {
       // Provider unavailable or no results
       return [];
